@@ -1,59 +1,45 @@
 name: Build natten for Windows (CUDA 12.6)
 
 on:
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      # 1. 检出代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. 安装 Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           architecture: x64
 
-      # 3. 安装基础依赖（包括 wheel）
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
-          pip install --upgrade pip setuptools wheel  # [[5]][[9]]
-      
-      # 4. 安装 CUDA 12.6 工具包
+          pip install --upgrade pip setuptools wheel
+
       - name: Install CUDA 12.6
         run: |
-          # 下载并安装 CUDA 12.6（注意：GitHub 运行器可能需要手动安装）
           Invoke-WebRequest "https://developer.download.nvidia.com/compute/cuda/12.6.0/network_installers/cuda_12.6.0_windows_network.exe" -OutFile cuda_installer.exe
-          Start-Process -FilePath ".\cuda_installer.exe" -ArgumentList "-s nvcc_12.6" -Wait  # 仅安装 nvcc 和基础工具 [[2]]
+          Start-Process -FilePath ".\cuda_installer.exe" -ArgumentList "-s nvcc_12.6" -Wait
           Remove-Item cuda_installer.exe
 
-      # 5. 安装 PyTorch（CUDA 12.6 版本）
-      - name: Install PyTorch with CUDA 12.6
-        run: |
-          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126  # [[3]][[4]]
-
-      # 6. 安装 CMake 和 Ninja
       - name: Install CMake and Ninja
         run: |
-          choco install cmake ninja -y --installargs 'ADD_CMAKE_TO_PATH=System'  # [[1]][[6]]
+          choco install cmake ninja -y --installargs 'ADD_CMAKE_TO_PATH=System'
 
-      # 7. 配置 CUDA 环境变量
       - name: Set CUDA Environment
         run: |
           $env:Path += ";C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin"
-          echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6" | Out-File -FilePath $env:GITHUB_ENV -Append  # [[2]]
+          echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # 8. 构建 wheel 包
-      - name: Build wheel
+      - name: Build with verbose logging
         run: |
-          pip install -e . --no-cache-dir  # 强制重新编译 [[9]]
-          python setup.py bdist_wheel
+          pip install -e . --no-cache-dir
+          cmake --build build --config Release --verbose  # 关键调试步骤[[2]][[5]]
 
-      # 9. 上传生成的 .whl 文件
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
