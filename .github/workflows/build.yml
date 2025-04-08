@@ -1,7 +1,7 @@
-name: Build natten for Windows
+name: Build natten for Windows (CUDA 12.6)
 
 on:
-  workflow_dispatch:  # 手动触发构建
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
@@ -11,39 +11,51 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. 安装 Python 和依赖
+      # 2. 安装 Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"  # 根据你的需求选择版本
+          python-version: "3.11"
+          architecture: x64
 
-      # 3. 安装 PyTorch（需匹配 CUDA 版本）
-      - name: Install PyTorch
+      # 3. 安装基础依赖（包括 wheel）
+      - name: Install build dependencies
         run: |
-          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-
-      # 4. 安装构建工具
-      - name: Install CMake, Ninja, and MSVC
+          pip install --upgrade pip setuptools wheel  # [[5]][[9]]
+      
+      # 4. 安装 CUDA 12.6 工具包
+      - name: Install CUDA 12.6
         run: |
-          choco install cmake ninja -y --installargs 'ADD_CMAKE_TO_PATH=System'
-          # 安装 Visual Studio Build Tools（若需要）
-          # 注意：Windows 运行器可能已预装部分工具
+          # 下载并安装 CUDA 12.6（注意：GitHub 运行器可能需要手动安装）
+          Invoke-WebRequest "https://developer.download.nvidia.com/compute/cuda/12.6.0/network_installers/cuda_12.6.0_windows_network.exe" -OutFile cuda_installer.exe
+          Start-Process -FilePath ".\cuda_installer.exe" -ArgumentList "-s nvcc_12.6" -Wait  # 仅安装 nvcc 和基础工具 [[2]]
+          Remove-Item cuda_installer.exe
 
-      # 5. 配置 CUDA 环境（示例为 CUDA 11.8）
+      # 5. 安装 PyTorch（CUDA 12.6 版本）
+      - name: Install PyTorch with CUDA 12.6
+        run: |
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126  # [[3]][[4]]
+
+      # 6. 安装 CMake 和 Ninja
+      - name: Install CMake and Ninja
+        run: |
+          choco install cmake ninja -y --installargs 'ADD_CMAKE_TO_PATH=System'  # [[1]][[6]]
+
+      # 7. 配置 CUDA 环境变量
       - name: Set CUDA Environment
         run: |
           $env:Path += ";C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin"
-          echo "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6" | Out-File -FilePath $env:GITHUB_ENV -Append  # [[2]]
 
-      # 6. 编译并打包
+      # 8. 构建 wheel 包
       - name: Build wheel
         run: |
-          pip install -e . --no-cache-dir
+          pip install -e . --no-cache-dir  # 强制重新编译 [[9]]
           python setup.py bdist_wheel
 
-      # 7. 上传构建产物
-      - name: Upload wheel
+      # 9. 上传生成的 .whl 文件
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: natten-wheel
+          name: natten-cuda126
           path: dist/*.whl
