@@ -1,0 +1,49 @@
+name: Build natten for Windows
+
+on:
+  workflow_dispatch:  # 手动触发构建
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 安装 Python 和依赖
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"  # 根据你的需求选择版本
+
+      # 3. 安装 PyTorch（需匹配 CUDA 版本）
+      - name: Install PyTorch
+        run: |
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+      # 4. 安装构建工具
+      - name: Install CMake, Ninja, and MSVC
+        run: |
+          choco install cmake ninja -y --installargs 'ADD_CMAKE_TO_PATH=System'
+          # 安装 Visual Studio Build Tools（若需要）
+          # 注意：Windows 运行器可能已预装部分工具
+
+      # 5. 配置 CUDA 环境（示例为 CUDA 11.8）
+      - name: Set CUDA Environment
+        run: |
+          $env:Path += ";C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\bin"
+          echo "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # 6. 编译并打包
+      - name: Build wheel
+        run: |
+          pip install -e . --no-cache-dir
+          python setup.py bdist_wheel
+
+      # 7. 上传构建产物
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: natten-wheel
+          path: dist/*.whl
