@@ -20,7 +20,7 @@ jobs:
       # 3. 安装 PyTorch（需匹配 CUDA 版本）
       - name: Install PyTorch
         run: |
-          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 
       # 4. 安装构建工具
       - name: Install CMake, Ninja, and MSVC
@@ -32,8 +32,8 @@ jobs:
       # 5. 配置 CUDA 环境（示例为 CUDA 11.8）
       - name: Set CUDA Environment
         run: |
-          $env:Path += ";C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\bin"
-          echo "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $env:Path += ";C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin"
+          echo "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       # 6. 编译并打包
       - name: Build wheel
